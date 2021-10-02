@@ -11,3 +11,8 @@ Those are assignments to reinvent some calculation methods. Beware of memory lea
 Contains `histogram_equalization.c` which is a simple code for small file inputs (photos in pgm ASCII format) to apply histogram equalization to them. Note that the code will work only if the header comments are removed. An updated version `equalize.c` is also included which removes comments at the beginning of the file and can deal with images of any size.
 Here is a video on this project: https://youtu.be/OWPc9IVfdLQ
 Compile by typing `gcc equalize.c -o equalize` if you use gcc and run by typing: `./equalize input.pgm [output.pgm]` in the directory that you compiled the source code.
+
+## Database
+Contains `main.c` which is a database management project requested to be coded in a single file.
+The database is aimed at storing information about the students and the lecturers of an arbitrary university and tracking their course enrollment, assignment and class statuses.The folder has some files created during a test of the program.
+Also `report.pdf` [file](./database/report.pdf) contains more detailed information in Turkish.
