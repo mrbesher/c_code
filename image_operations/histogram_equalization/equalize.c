@@ -67,7 +67,6 @@ int equalizeImage(char const *argv[], bool providedOutputName) {
     i=0;
     do {
       fscanf(picture, "%d", pixelValues + i);
-      printf("GOT: %d", pixelValues[i]);
       i++;
     } while((fgetc(picture) != EOF) && i<500);
     countPixels(pixelValues, pixelCounter, i);
