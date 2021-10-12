@@ -2,11 +2,18 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#define LINE_SIZE 100
+
 int equalizeImage(char const**, bool);
 void countPixels(int*, double*, int);
 void makeCumulativeFreq(double*, double*, int);
 void createPgm(int, int, char*);
 void appendPixels(int*, FILE*, int, double*);
+void skipComments(FILE*);
+bool isAsciiPgm(FILE*);
+bool isSpace(char);
+
 int main(int argc, char const *argv[]) {
   int returnedValue;
   if (argc > 2) {
@@ -38,27 +45,29 @@ int equalizeImage(char const *argv[], bool providedOutputName) {
     free(commentHolder);
     return -1;
   };
+  if (!isAsciiPgm(picture)) {
+    printf("%s is not an ASCII PGM file\n", fileName);
+    fclose(picture);
+    return -1;
+  }
   if (providedOutputName) {
     strcpy(fileName, argv[2]);
   } else {
     strcpy(fileName, "equalized_");
     strcat(fileName, argv[1]);
   }
-  //remove comments and type specifiers
-  fscanf(picture, "%s", commentHolder);
+  skipComments(picture);
+  fscanf(picture, "%d %d", &width, &height);
+  skipComments(picture);
+  fscanf(picture, "%d", &pixelsNumber);
   fgetc(picture);
-  do {
-    fscanf(picture, "%[^\n]", commentHolder);
-    fgetc(picture);
-  } while(commentHolder[0] == '#');
-  sscanf(commentHolder, "%d %d", &width, &height);
-  fscanf(picture, " %s", commentHolder);
   pixelsNumber = width*height;
   printf("Calculating frequency...\n");
   do {
     i=0;
     do {
       fscanf(picture, "%d", pixelValues + i);
+      printf("GOT: %d", pixelValues[i]);
       i++;
     } while((fgetc(picture) != EOF) && i<500);
     countPixels(pixelValues, pixelCounter, i);
@@ -123,4 +132,32 @@ void appendPixels(int* pixelValues, FILE* pgmPicture, int size, double* cumulati
   for (size_t i = 0; i < size; i++) {
     fprintf(pgmPicture, "%d\n", (int)(cumulativeFreq[pixelValues[i]]*255+0.5));
   }
+}
+
+void skipComments(FILE* file) {
+  int c;
+  char* lineHolder = (char*) malloc(LINE_SIZE * sizeof(char));
+  while ((c = fgetc(file)) && isSpace(c));
+  if (c == '#') {
+    fgets(lineHolder, LINE_SIZE, file);
+    skipComments(file);
+  } else {
+    fseek(file, -1, SEEK_CUR);
+  }
+  free(lineHolder);
+}
+
+bool isAsciiPgm(FILE* file) {
+  char* typeHolder = (char*) malloc(LINE_SIZE * sizeof(char));
+  fscanf(file, " %s ", typeHolder);
+  if (strcmp(typeHolder, "P2")) {
+    free(typeHolder);
+    return false;
+  }
+  free(typeHolder);
+  return true;
+}
+
+bool isSpace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
 }
