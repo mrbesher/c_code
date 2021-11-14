@@ -37,13 +37,13 @@ size_t partition(void *base, size_t nmemb, size_t size,
 }
 
 void myqsort(void *base, size_t nmemb, size_t size,
-             int (*compar)(const void *, const void *), int depth) {
-  if (nmemb < 2 || depth > 20)
+             int (*compar)(const void *, const void *)) {
+  if (nmemb < 2)
     return;
 
   size_t offset = partition(base, nmemb, size, compar);
-  myqsort(base, offset, size, compar, ++depth);
-  myqsort(base+offset*size, nmemb-(offset), size, compar, depth);
+  myqsort(base, offset, size, compar);
+  myqsort(base+offset*size, nmemb-(offset), size, compar);
 }
 
 int main() {
