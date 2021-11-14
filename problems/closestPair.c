@@ -29,8 +29,8 @@ void freePointsArr(PointsArr*);
 // point functions
 PointsArr* readPointsFromFile(const char*);
 PointsArr* findClosestPair(PointsArr*);
-PointsArr* bfClosestPair(PointsArr*);
-PointsArr* closestNearMedian(PointsArr*);
+PointsArr* bfClosestPair(PointsArr*, double);
+PointsArr* closestNearMedian(PointsArr*, double);
 double euclideanDist(Point, Point);
 PointsArr* minPairByDist(PointsArr*, PointsArr*);
 
@@ -98,7 +98,7 @@ PointsArr* readPointsFromFile(const char* filename) {
 */
 PointsArr* findClosestPair(PointsArr* arr) {
   if (arr->size <= 3)
-    return bfClosestPair(arr);
+    return bfClosestPair(arr, INT_MAX);
   size_t median = arr->size / 2; // floors if arr->size is not even
 
   // initialize an array for the left half and get the closestpair from it
@@ -129,7 +129,7 @@ PointsArr* findClosestPair(PointsArr* arr) {
   // if closest pair is the closest one it won't change else it is freed and
   // replaced with one from the 2d area
   if (nearMedian->size > 1)
-    closestpair = minPairByDist(closestpair, closestNearMedian(nearMedian));
+    closestpair = minPairByDist(closestpair, closestNearMedian(nearMedian, closestpair->distance));
   freePointsArr(nearMedian);
 
   return closestpair;
@@ -144,12 +144,12 @@ PointsArr* findClosestPair(PointsArr* arr) {
 *
 * returns: a pointer to a struct containing the closest pair
 */
-PointsArr* bfClosestPair(PointsArr* arr) {
+PointsArr* bfClosestPair(PointsArr* arr, double maxYDist) {
   size_t i, j;
   double currMinDist, minDistance = INT_MAX; // will be used to compare with 'infinity' when starting
   PointsArr* closestpair = allocPointsArr(2); // an array that has closest pair
   for (i = 0; i < arr->size; i++) {
-    for (j = i+1; j < arr->size; j++) {
+    for (j = i+1; j < arr->size && (arr->data[j].y - arr->data[i].y) < maxYDist; j++) {
       if ((currMinDist = euclideanDist(arr->data[i], arr-> data[j])) < minDistance) {
         minDistance = currMinDist;
         closestpair->data[0] = (arr->data)[i];
@@ -171,9 +171,9 @@ PointsArr* bfClosestPair(PointsArr* arr) {
 *
 * returns: a pointer to a struct containing the closest inter-region pair
 */
-PointsArr* closestNearMedian(PointsArr* arr) {
+PointsArr* closestNearMedian(PointsArr* arr, double maxYDist) {
   qsort(arr->data, arr->size, sizeof(Point), comparPointsByY);
-  return bfClosestPair(arr);
+  return bfClosestPair(arr, maxYDist);
 }
 
 
