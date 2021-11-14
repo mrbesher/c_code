@@ -70,6 +70,7 @@ PointsArr* readPointsFromFile(const char* filename) {
     printf("Couldn't read %s\nProbably doesn't exist\n", filename);
     return NULL;
   }
+  printf("Processing file %s\n", filename);
   size_t i=0; // counter
   size_t j=INIT_ARR_SIZE; // points arr size
   PointsArr *points = allocPointsArr(j);
@@ -101,33 +102,28 @@ PointsArr* findClosestPair(PointsArr* arr) {
   size_t median = arr->size / 2; // floors if arr->size is not even
 
   // initialize an array for the left half and get the closestpair from it
-  PointsArr* lHalf = allocPointsArr(median);
+  PointsArr lHalf;
   PointsArr* lclosestPair; // will be set to the closestpair in the left half
-  memcpy(lHalf->data, arr->data, median*sizeof(Point));
-  lHalf->size = median;
-  lclosestPair = findClosestPair(lHalf); // pair distance minDl
-  freePointsArr(lHalf);
+  lHalf.size = median;
+  lHalf.data = arr->data;
+  lclosestPair = findClosestPair(&lHalf); // pair distance minDl
 
   // initialize an array for the right half and get the closestpair from it
-  PointsArr* rHalf = allocPointsArr((arr->size)-median);
+  PointsArr rHalf;
   PointsArr* rclosestPair; // will be set to the closestpair in the right half
-  memcpy(rHalf->data, arr->data+median, ((arr->size)-median)*sizeof(Point));
-  rHalf->size = ((arr->size)-median);
-  rclosestPair = findClosestPair(rHalf); // pair distance minDr
-  freePointsArr(rHalf);
+  rHalf.size = arr->size - median;
+  rHalf.data = arr->data+median;
+  rclosestPair = findClosestPair(&rHalf); // pair distance minDr
 
   PointsArr* closestpair = minPairByDist(lclosestPair, rclosestPair);
 
   // check if an inter-region closer pair exists
   PointsArr* nearMedian = allocPointsArr(arr->size);
   size_t i, j=0;
-  for (i = 0; i < median+1; i++) {
+  for (i = 0; i < arr->size; i++) {
     if ((arr->data[median].x - arr->data[i].x) < closestpair->distance){
       nearMedian->data[j++]=arr->data[i]; // if the point falls within 2d
     }
-  }
-  while ((arr->data[i].x - arr->data[median-1].x) < closestpair->distance) {
-    nearMedian->data[j++]=arr->data[i++]; // if the point falls within 2d
   }
   nearMedian->size=j;
   // if closest pair is the closest one it won't change else it is freed and
