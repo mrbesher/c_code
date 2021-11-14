@@ -21,6 +21,9 @@ typedef struct {
 // sort functions
 int comparPointsByX(const void*, const void*);
 int comparPointsByY(const void*, const void*);
+void swap(void*, void*, size_t);
+size_t partition(void*, size_t, size_t, int (*)(const void *, const void *));
+void myqsort(void*, size_t, size_t, int (*)(const void *, const void *));
 
 // generic functions
 PointsArr* allocPointsArr(size_t);
@@ -45,7 +48,7 @@ int main(int argc, char const *argv[]) {
   PointsArr* closest; // will store the closestpair
   if (!arr)
     return 1;
-  qsort(arr->data, arr->size, sizeof(Point), comparPointsByX);
+  myqsort(arr->data, arr->size, sizeof(Point), comparPointsByX);
   closest=findClosestPair(arr);
   printf("Closest pair: (%d,%d) and (%d,%d)\nDistance: %lf\n", closest->data[0].x, closest->data[0].y,
           closest->data[1].x, closest->data[1].y, closest->distance);
@@ -135,12 +138,30 @@ PointsArr* findClosestPair(PointsArr* arr) {
   return closestpair;
 }
 
+
+/*
+* Function: closestNearMedian
+* --------------------------
+* finds the closest pair in the list after sorting according to y-axis
+*
+* arr: a struct containing the array in a d distance away from median
+* maxYDist: specifies a hard limit on distance to stop comparing
+*
+* returns: a pointer to a struct containing the closest inter-region pair
+*/
+PointsArr* closestNearMedian(PointsArr* arr, double maxYDist) {
+  myqsort(arr->data, arr->size, sizeof(Point), comparPointsByY);
+  return bfClosestPair(arr, maxYDist);
+}
+
+
 /*
 * Function: bfClosestPair
 * --------------------------
 * finds the closest pair in the list by checking all possible pairs
 *
 * arr: a struct containing the array to be processed
+* maxYDist: specifies a hard limit on distance to stop comparing
 *
 * returns: a pointer to a struct containing the closest pair
 */
@@ -159,21 +180,6 @@ PointsArr* bfClosestPair(PointsArr* arr, double maxYDist) {
     }
   }
   return closestpair;
-}
-
-
-/*
-* Function: closestNearMedian
-* --------------------------
-* finds the closest pair in the list after sorting according to y-axis
-*
-* arr: a struct containing the array in a d distance away from median
-*
-* returns: a pointer to a struct containing the closest inter-region pair
-*/
-PointsArr* closestNearMedian(PointsArr* arr, double maxYDist) {
-  qsort(arr->data, arr->size, sizeof(Point), comparPointsByY);
-  return bfClosestPair(arr, maxYDist);
 }
 
 
@@ -223,4 +229,40 @@ PointsArr* allocPointsArr(size_t nmemb) {
 void freePointsArr(PointsArr* arr) {
   free(arr->data);
   free(arr);
+}
+
+
+void swap(void *a, void *b, size_t size) {
+  void* temp = malloc(size);
+  memcpy(temp, a, size);
+  memcpy(a, b, size);
+  memcpy(b, temp, size);
+  free(temp);
+}
+
+
+size_t partition(void *base, size_t nmemb, size_t size,
+                 int (*compar)(const void *, const void *)) {
+  void *pivot = base+(nmemb-1)*size; // last element as a pivot
+  int i = -1; // position the pivot should be in
+  size_t j; // loop variable
+
+  for (j = 0; j < nmemb-1; j++) {
+    // if compar says pivot is greater swap
+    if (compar(base + j*size, pivot) < 0)
+      i++, swap(base+i*size, base+j*size, size);
+  }
+  swap(base+(++i)*size, pivot, size);
+  return (size_t)i;
+}
+
+
+void myqsort(void *base, size_t nmemb, size_t size,
+             int (*compar)(const void *, const void *)) {
+  if (nmemb < 2)
+    return;
+
+  size_t offset = partition(base, nmemb, size, compar);
+  myqsort(base, offset, size, compar);
+  myqsort(base+offset*size, nmemb-(offset), size, compar);
 }
