@@ -124,9 +124,8 @@ PointsArr* findClosestPair(PointsArr* arr) {
   PointsArr* nearMedian = allocPointsArr(arr->size);
   size_t i, j=0;
   for (i = 0; i < arr->size; i++) {
-    if ((arr->data[median].x - arr->data[i].x) < closestpair->distance){
+    if ((arr->data[median].x - arr->data[i].x) < closestpair->distance)
       nearMedian->data[j++]=arr->data[i]; // if the point falls within 2d
-    }
   }
   nearMedian->size=j;
   // if closest pair is the closest one it won't change else it is freed and
@@ -167,12 +166,12 @@ PointsArr* closestNearMedian(PointsArr* arr, double maxYDist) {
 */
 PointsArr* bfClosestPair(PointsArr* arr, double maxYDist) {
   size_t i, j;
-  double currMinDist, minDistance = INT_MAX; // will be used to compare with 'infinity' when starting
+  double currMinDist;
   PointsArr* closestpair = allocPointsArr(2); // an array that has closest pair
+  closestpair->distance = INT_MAX; // will be used to compare with 'infinity' when starting
   for (i = 0; i < arr->size; i++) {
     for (j = i+1; j < arr->size && (arr->data[j].y - arr->data[i].y) < maxYDist; j++) {
-      if ((currMinDist = euclideanDist(arr->data[i], arr-> data[j])) < minDistance) {
-        minDistance = currMinDist;
+      if ((currMinDist = euclideanDist(arr->data[i], arr-> data[j])) < closestpair->distance) {
         closestpair->data[0] = (arr->data)[i];
         closestpair->data[1] = (arr->data)[j];
         closestpair->distance=currMinDist;
@@ -252,6 +251,7 @@ size_t partition(void *base, size_t nmemb, size_t size,
     if (compar(base + j*size, pivot) < 0)
       i++, swap(base+i*size, base+j*size, size);
   }
+  // swap pivot with its calculated location
   swap(base+(++i)*size, pivot, size);
   return (size_t)i;
 }
