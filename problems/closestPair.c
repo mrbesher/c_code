@@ -264,5 +264,5 @@ void myqsort(void *base, size_t nmemb, size_t size,
 
   size_t offset = partition(base, nmemb, size, compar);
   myqsort(base, offset, size, compar);
-  myqsort(base+offset*size, nmemb-(offset), size, compar);
+  myqsort(base+(offset+1)*size, nmemb-(offset+1), size, compar);
 }
