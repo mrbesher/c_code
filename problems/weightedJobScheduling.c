@@ -60,11 +60,6 @@ int main() {
         return 1;
     }
 
-    printf("\nValue\t\tlnonConflict\n");
-    for (i = 0; i < size; i++) {
-        printf("%d\t\t%d\n", profits[i].value, profits[i].lNonConflicting);
-    }
-
     print_optimal_solution(profits, ads, size);
 
     free(ads);
@@ -115,7 +110,6 @@ Profit *create_max_profit_arr(Advert *ads, size_t size) {
     }
     return profits;
 }
-
 
 /*
 * Function: get_last_nonconflict
@@ -194,7 +188,7 @@ void print_optimal_solution(Profit *profits, Advert *ads, size_t size) {
     Advert *optimal = (Advert *)malloc(size * sizeof(Advert));
 
     if (!optimal) {
-        printf("%d > Error: Cannot allocate array for optimal solution", __LINE__);
+        printf("%d > Error: Cannot allocate memory for optimal solution array", __LINE__);
         return;
     }
 
@@ -207,11 +201,11 @@ void print_optimal_solution(Profit *profits, Advert *ads, size_t size) {
         }
     }
 
-    /* if ad #0 is the last non-conflicting */
+    /* if ad #0 is a last non-conflicting */
     if (index == 0)
         optimal[i++] = ads[index];
-    
-    printf("\nThe following ads would give you the highest profit:\n");    
+
+    printf("\nThe following ads would give you the highest profit:\n");
     print_ads(optimal, i);
 }
 
