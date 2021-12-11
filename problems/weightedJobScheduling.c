@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SEPERATOR "===========================\n"
+#define INIT_ARR_SIZE 2
+
 typedef struct {
     int startTime;
     int duration;
@@ -14,33 +17,42 @@ typedef struct {
 } Profit;
 
 /* optimal solution function */
+
 Profit *create_max_profit_arr(Advert *, size_t);
 int get_last_nonconflict(Advert *, size_t, size_t, size_t);
 
 /* IO functions */
-Advert *get_ads_arr(size_t);
+
+Advert *get_ads_from_usr(size_t);
+Advert *read_ads_file(const char *, size_t *);
 void print_ads(Advert *, size_t);
 void print_optimal_solution(Profit *, Advert *, size_t);
 
 /* sort functions */
+
 int cmp_ads_finish(const void *, const void *);
 void swap(void *, void *, size_t);
 size_t partition(void *, size_t, size_t, int (*)(const void *, const void *));
 void myqsort(void *, size_t, size_t, int (*)(const void *, const void *));
 
 /* generic functions */
+
 int max(int, int);
 
-int main() {
+int main(int argc, char const *argv[]) {
     Advert *ads;
     size_t size;
     Profit *profits;
     size_t i;
 
-    /* get adverts from user */
-    printf("# of ads: ");
-    scanf(" %lu", &size);
-    ads = get_ads_arr(size);
+    if (argc > 1) {
+        ads = read_ads_file(argv[1], &size);
+    } else {
+        /* get adverts from user */
+        printf("# of ads: ");
+        scanf(" %lu", &size);
+        ads = get_ads_from_usr(size);
+    }
 
     if (!ads) {
         printf("%d > Error: Couldn't create ads array.", __LINE__);
@@ -49,9 +61,6 @@ int main() {
 
     /* sort data by finish time */
     myqsort(ads, size, sizeof(Advert), cmp_ads_finish);
-
-    printf("\nSorted data by finish time\n");
-    print_ads(ads, size);
 
     profits = create_max_profit_arr(ads, size);
 
@@ -149,7 +158,7 @@ int get_last_nonconflict(Advert *ads, size_t index, size_t l, size_t r) {
 /* IO FUNCTIONS */
 
 /*
-* Function: get_ads_arr
+* Function: get_ads_from_usr
 * --------------------------
 * gets Advert array from user
 *
@@ -157,7 +166,7 @@ int get_last_nonconflict(Advert *ads, size_t index, size_t l, size_t r) {
 *
 * returns: a pointer to the array containing Advert array read from user
 */
-Advert *get_ads_arr(size_t size) {
+Advert *get_ads_from_usr(size_t size) {
     size_t i;
     Advert *ads = (Advert *)malloc(size * sizeof(Advert));
 
@@ -172,10 +181,35 @@ Advert *get_ads_arr(size_t size) {
     return ads;
 }
 
+Advert *read_ads_file(const char *filename, size_t *size) {
+    FILE *adsfp;
+    Advert *ads;
+    size_t i = 0;
+    size_t j = INIT_ARR_SIZE; /* ads array size */
+    if (!(adsfp = fopen(filename, "rb"))) {
+        printf("Couldn't read %s\nProbably doesn't exist\n", filename);
+        return NULL;
+    }
+
+    printf("\n> Processing file %s\n", filename);
+    ads = (Advert *)malloc(j * sizeof(Advert));
+    while (fscanf(adsfp, " %d %d %d", &ads[i].startTime, &ads[i].duration, &ads[i].value) == 3) {
+        i++;
+        if (i >= j - 1) {
+            j <<= 1;
+            ads = realloc(ads, j * sizeof(Advert));
+        }
+    }
+    fclose(adsfp);
+    *size = i;
+    return ads;
+}
+
 void print_ads(Advert *ads, size_t size) {
     size_t i;
+    printf(SEPERATOR);
     printf("Start\t\tDur.\t\tVal.\t\tFin.\n");
-    printf("===========================\n");
+    printf(SEPERATOR);
     for (i = 0; i < size; i++) {
         printf("%d\t\t%d\t\t%d\t\t%d\n", ads[i].startTime, ads[i].duration, ads[i].value,
                ads[i].startTime + ads[i].duration);
@@ -192,7 +226,7 @@ void print_optimal_solution(Profit *profits, Advert *ads, size_t size) {
         return;
     }
 
-    while (index > -1) {
+    while (index > 0) {
         if (profits[index].value != profits[index - 1].value) {
             optimal[i++] = ads[index];
             index = profits[index].lNonConflicting;
@@ -201,12 +235,13 @@ void print_optimal_solution(Profit *profits, Advert *ads, size_t size) {
         }
     }
 
-    /* if ad #0 is a last non-conflicting */
+    /* if ad #0 is the last non-conflicting */
     if (index == 0)
         optimal[i++] = ads[index];
 
-    printf("\nThe following ads would give you the highest profit:\n");
+    printf("\nThe following ads would give you the highest profit (%d):\n", profits[size - 1].value);
     print_ads(optimal, i);
+    free(optimal);
 }
 
 /* SORT FUNCTIONS */
