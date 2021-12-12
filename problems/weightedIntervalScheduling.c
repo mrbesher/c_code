@@ -6,6 +6,7 @@
 #define INIT_ARR_SIZE 2
 
 typedef struct {
+    int id;
     int startTime;
     int duration;
     int value;
@@ -43,7 +44,6 @@ int main(int argc, char const *argv[]) {
     Advert *ads;
     size_t size;
     Profit *profits;
-    size_t i;
 
     if (argc > 1) {
         ads = read_ads_file(argv[1], &size);
@@ -84,7 +84,7 @@ int main(int argc, char const *argv[]) {
 * calculates a profits array that has the highest profit possible
 * considering ads (1..i) in arr[i]
 *
-* ads: the array size of ads to consider
+* ads: the array of ads to consider
 * size: the number of ads in array
 *
 * returns: profits array with max profit and last non conflicting
@@ -126,7 +126,7 @@ Profit *create_max_profit_arr(Advert *ads, size_t size) {
 * calculates the last non conflicting Advert index before
 * the key Advert
 *
-* ads: the array size of ads to consider
+* ads: the array of ads to consider
 * index: the index of the key Advert
 * l: the offset to start looking for a non-conflicting Advert (inclusive)
 * r: the limit to stop looking for a non-conflicting Advert (exclusive)
@@ -177,6 +177,7 @@ Advert *get_ads_from_usr(size_t size) {
     for (i = 0; i < size; i++) {
         printf("#%lu Enter starttime duration value: ", i + 1);
         scanf(" %d %d %d", &ads[i].startTime, &ads[i].duration, &ads[i].value);
+        ads[i].id = i + 1;
     }
     return ads;
 }
@@ -194,6 +195,7 @@ Advert *read_ads_file(const char *filename, size_t *size) {
     printf("\n> Processing file %s\n", filename);
     ads = (Advert *)malloc(j * sizeof(Advert));
     while (fscanf(adsfp, " %d %d %d", &ads[i].startTime, &ads[i].duration, &ads[i].value) == 3) {
+        ads[i].id = i + 1;
         i++;
         if (i >= j - 1) {
             j <<= 1;
@@ -208,10 +210,10 @@ Advert *read_ads_file(const char *filename, size_t *size) {
 void print_ads(Advert *ads, size_t size) {
     size_t i;
     printf(SEPERATOR);
-    printf("Start\t\tDur.\t\tVal.\t\tFin.\n");
+    printf("#ID\t\tStart\t\tDur.\t\tVal.\t\tFin.\n");
     printf(SEPERATOR);
     for (i = 0; i < size; i++) {
-        printf("%d\t\t%d\t\t%d\t\t%d\n", ads[i].startTime, ads[i].duration, ads[i].value,
+        printf("#%3d\t\t%d\t\t%d\t\t%d\t\t%d\n", ads[i].id, ads[i].startTime, ads[i].duration, ads[i].value,
                ads[i].startTime + ads[i].duration);
     }
 }
