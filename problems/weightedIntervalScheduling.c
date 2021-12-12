@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define SEPERATOR "===========================\n"
 #define INIT_ARR_SIZE 2
@@ -29,16 +28,13 @@ Advert *read_ads_file(const char *, size_t *);
 void print_ads(Advert *, size_t);
 void print_optimal_solution(Profit *, Advert *, size_t);
 
-/* sort functions */
+/* sort functions*/
 
 int cmp_ads_finish(const void *, const void *);
-void swap(void *, void *, size_t);
-size_t partition(void *, size_t, size_t, int (*)(const void *, const void *));
-void myqsort(void *, size_t, size_t, int (*)(const void *, const void *));
 
 /* generic functions */
 
-int max(int, int);
+int get_max(int, int);
 
 int main(int argc, char const *argv[]) {
     Advert *ads;
@@ -60,7 +56,7 @@ int main(int argc, char const *argv[]) {
     }
 
     /* sort data by finish time */
-    myqsort(ads, size, sizeof(Advert), cmp_ads_finish);
+    qsort(ads, size, sizeof(Advert), cmp_ads_finish);
 
     profits = create_max_profit_arr(ads, size);
 
@@ -110,7 +106,7 @@ Profit *create_max_profit_arr(Advert *ads, size_t size) {
 
         /* if including the current ad is more profitable set profit[i] to the new profit
            else continue with the prev ads */
-        if (max(profits[i - 1].value, curValue) == curValue) {
+        if (get_max(profits[i - 1].value, curValue) == curValue) {
             profits[i].value = curValue;
             profits[i].lNonConflicting = nonconflict;
         } else {
@@ -143,16 +139,14 @@ int get_last_nonconflict(Advert *ads, size_t index, size_t l, size_t r) {
     mid = (l + r) / 2;
 
     /* if ad[mid] conflicts search in ads before mid */
-    if (ads[mid].startTime + ads[mid].duration > ads[index].startTime) {
+    if (ads[mid].startTime + ads[mid].duration > ads[index].startTime)
         return get_last_nonconflict(ads, index, l, mid);
-    }
 
     /* check if this is the last job not conclicting */
-    if (ads[mid + 1].startTime + ads[mid + 1].duration <= ads[index].startTime) {
+    if (ads[mid + 1].startTime + ads[mid + 1].duration <= ads[index].startTime)
         return get_last_nonconflict(ads, index, mid + 1, r);
-    } else {
-        return mid;
-    }
+    
+    return mid;
 }
 
 /* IO FUNCTIONS */
@@ -210,7 +204,7 @@ Advert *read_ads_file(const char *filename, size_t *size) {
 void print_ads(Advert *ads, size_t size) {
     size_t i;
     printf(SEPERATOR);
-    printf("#ID\t\tStart\t\tDur.\t\tVal.\t\tFin.\n");
+    printf("#ID\t\tStart\t\tDur.\t\tVal.\t\tFinish\n");
     printf(SEPERATOR);
     for (i = 0; i < size; i++) {
         printf("#%3d\t\t%d\t\t%d\t\t%d\t\t%d\n", ads[i].id, ads[i].startTime, ads[i].duration, ads[i].value,
@@ -246,8 +240,6 @@ void print_optimal_solution(Profit *profits, Advert *ads, size_t size) {
     free(optimal);
 }
 
-/* SORT FUNCTIONS */
-
 /*
 * Function: cmp_ads_finish
 * --------------------------
@@ -264,41 +256,7 @@ int cmp_ads_finish(const void *a, const void *b) {
     return finishA - finishB;
 }
 
-void swap(void *a, void *b, size_t size) {
-    void *temp = malloc(size);
-    memcpy(temp, a, size);
-    memcpy(a, b, size);
-    memcpy(b, temp, size);
-    free(temp);
-}
-
-size_t partition(void *base, size_t nmemb, size_t size,
-                 int (*compar)(const void *, const void *)) {
-    void *pivot = (char *)base + (nmemb - 1) * size; /* last element as a pivot */
-    int i = -1;                                      /* position the pivot should be in */
-    size_t j;                                        /* loop variable */
-
-    for (j = 0; j < nmemb - 1; j++) {
-        /* if compar says pivot is greater swap */
-        if (compar((char *)base + j * size, pivot) < 0)
-            i++, swap((char *)base + i * size, (char *)base + j * size, size);
-    }
-    /* swap pivot with its calculated location */
-    swap((char *)base + (++i) * size, pivot, size);
-    return (size_t)i;
-}
-
-void myqsort(void *base, size_t nmemb, size_t size,
-             int (*compar)(const void *, const void *)) {
-    size_t offset;
-    if (nmemb < 2)
-        return;
-    offset = partition(base, nmemb, size, compar);
-    myqsort(base, offset, size, compar);
-    myqsort((char *)base + (offset + 1) * size, nmemb - (offset + 1), size, compar);
-}
-
 /* GENERIC FUNCTIONS */
-int max(int a, int b) {
+int get_max(int a, int b) {
     return (a > b) ? a : b;
 }
