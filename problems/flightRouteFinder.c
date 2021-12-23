@@ -27,9 +27,9 @@ typedef struct {
 } Graph;
 
 typedef struct {
-    char src[CITY_CHAR_LIMIT];
-    char dest[CITY_CHAR_LIMIT];
-    int criterion; /* 0: price, 1: time */
+    int src;
+    int dest;
+    int (*compar)(Cost *, Cost *);
     size_t transitlimit;
 } Preference;
 
@@ -54,18 +54,22 @@ size_t get_city_id(char *, char **, size_t);
 
 Path get_all_paths_sorted(Graph *, Preference);
 bool is_city_in_path(int, Citynode *);
-int add_full_path(Path *, Citynode *, Graph *);
-int add_all_paths(Graph *, Path *, int, int);
-int add_paths_from_node(Graph *, Path *, Citynode *, int);
+int add_full_path(Path **, Citynode *, Graph *, Preference);
+int add_all_paths(Graph *, Path **, Preference);
+int add_paths_from_node(Graph *, Path **, Citynode **, int, Preference, size_t);
+
+int compar_cost_price(Cost *, Cost *);
+int compar_cost_dur(Cost *, Cost *);
 
 /* STACK FUNCTONS */
-int remove_head(Citynode *);
-int add_city_to_stack(Citynode *, int);
+
+int remove_head(Citynode **);
+int add_city_to_stack(Citynode **, int);
 
 /* IO FUNCTIONS */
 
 Flight *read_flights_file(const char *, size_t *);
-Preference get_pref_usr();
+Preference get_pref_usr(Graph *);
 
 /* MEMORY FUNCTIONS */
 
@@ -107,6 +111,7 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
+    printf("\n\n");
     for (i = 0; i < graph->nmemb; i++) {
         for (j = 0; j < graph->nmemb; j++) {
             printf("%4d\t", graph->adjMatrix[i][j].duration);
@@ -114,50 +119,66 @@ int main(int argc, char const *argv[]) {
         printf("\n");
     }
 
-    usrPref = get_pref_usr();
+    for (i = 0; i < graph->nmemb; i++)
+        printf("%ld: %s\n", i, graph->mappings[i]);
+    printf("\n\n");
+
+    usrPref = get_pref_usr(graph);
     /*
     paths = get_all_paths_sorted(graph, usrPref);
     */
 
-    add_all_paths(graph, paths, get_city_id(usrPref.src, graph->mappings, graph->nmemb),
-                  get_city_id(usrPref.dest, graph->mappings, graph->nmemb));
+    add_all_paths(graph, &paths, usrPref);
+
+    for (Path *p = paths; p; p = p->next) {
+        printf("%d: ", p->cost->duration);
+        for (Citynode *c = p->head; c; c = c->next)
+            printf("%s  ", graph->mappings[c->cityId]);
+        printf("\n");
+    }
+
     free(flights);
     free_graph(graph);
     return 0;
 }
 
 /* GRAPH TRAVERSE FUNCTIONS */
-int add_all_paths(Graph *graph, Path *paths, int srcId, int destId) {
-    paths = (Path*) malloc(sizeof(Path));
+int add_all_paths(Graph *graph, Path **paths, Preference pref) {
     Citynode *visited = NULL;
-    paths->head = NULL;
-    add_city_to_stack(visited, srcId);
-    return add_paths_from_node(graph, paths, visited, destId);
+    int srcId = pref.src;
+    int destId = pref.dest;
+    add_city_to_stack(&visited, srcId);
+    return add_paths_from_node(graph, paths, &visited, destId, pref, 0);
 }
 
-int add_paths_from_node(Graph *graph, Path *paths, Citynode *visited, int destId) {
-    Citynode *currCity = paths->head;
+int add_paths_from_node(Graph *graph, Path **paths, Citynode **visited, int destId, Preference pref, size_t depth) {
+    Citynode *currCity = *visited;
     size_t i;
     Cost connCost;
 
+    /* reached limit */
+    if (depth > pref.transitlimit) {
+        remove_head(visited);
+        return 0;
+    }
+
     for (i = 0; i < graph->nmemb; i++) {
         connCost = graph->adjMatrix[currCity->cityId][i];
-
         /* if a flight exists between current city and dest */
         if (i == (size_t)destId && connCost.price != 0) {
-            printf("Found dest from %ld to %d\n", i, destId);
+            printf("Found dest from %s to %s\n", graph->mappings[currCity->cityId], graph->mappings[destId]);
             add_city_to_stack(visited, i);
-            add_full_path(paths, visited, graph);
+            add_full_path(paths, *visited, graph, pref);
             remove_head(visited);
-        } else if (connCost.price != 0 && !is_city_in_path(currCity->cityId, visited)) {
+        } else if (connCost.price != 0 && !is_city_in_path(i, *visited)) {
             /* if city has a connection and not visited */
-            printf("Visiting %ld", i);
+            printf("Visiting %s\n", graph->mappings[i]);
             add_city_to_stack(visited, i);
-            add_paths_from_node(graph, paths, visited, destId);
+            add_paths_from_node(graph, paths, visited, destId, pref, depth + 1);
         }
     }
     /* pop self from stack */
-    printf("backtracking from %d", visited->cityId);
+    printf("backtracking from %s\n", graph->mappings[(*visited)->cityId]);
     remove_head(visited);
     return 0;
 
@@ -175,17 +196,18 @@ int add_paths_from_node(Graph *graph, Path *paths, Citynode *visited, int destId
     */
 }
 
-int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
-    Path *temppaths = paths;
+int add_full_path(Path **paths, Citynode *visited, Graph *graph, Preference pref) {
+    Path *temppaths = *paths;
     Citynode *tempcity = visited;
     Citynode *newcity;
     Path *currPath;
     Cost *cost, tempcost;
-
+    printf("%d> CALLED\n",__LINE__);
     currPath = malloc(sizeof(Path));
     cost = malloc(sizeof(Cost));
     cost->duration = 0;
     cost->price = 0;
+    currPath->cost = cost;
 
     newcity = (Citynode *)malloc(sizeof(Citynode));
     newcity->cityId = tempcity->cityId;
@@ -195,7 +217,7 @@ int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
     /* add cities to currPath */
     while ((tempcity = tempcity->next)) {
         /* add current link cost */
-        tempcost = graph->adjMatrix[newcity->cityId][tempcity->next->cityId];
+        tempcost = graph->adjMatrix[newcity->cityId][tempcity->cityId];
         currPath->cost->price += tempcost.price;
         currPath->cost->duration += tempcost.duration + 1;
 
@@ -203,17 +225,18 @@ int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
         newcity = (Citynode *)malloc(sizeof(Citynode));
         newcity->cityId = tempcity->cityId;
         newcity->next = currPath->head;
+        currPath->head = newcity;
     }
 
     /*
     number of transits is `nodes - 2`
     one city is not counted above already
     */
-    currPath->cost->duration--;
+    (currPath->cost->duration)--;
 
     /* linkedlist empty */
     if (!temppaths) {
-        paths = currPath;
+        *paths = currPath;
         currPath->next = NULL;
         return 0;
     }
@@ -221,22 +244,24 @@ int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
     /* path has only one node */
     if (!(temppaths->next)) {
         /* if cost of current path is more */
-        if (temppaths->cost->price > currPath->cost->price) {
+        if (pref.compar(temppaths->cost, currPath->cost) > 0) {
             currPath->next = temppaths;
         } else {
             temppaths->next = currPath;
             currPath->next = NULL;
         }
+        *paths = currPath;
         return 0;
     }
 
     /* calculated path has less cost than the head path */
-    if (temppaths->cost->price > currPath->cost->price) {
+    if (pref.compar(temppaths->cost, currPath->cost) > 0) {
         currPath->next = temppaths;
+        *paths = currPath;
         return 0;
     }
 
-    while (temppaths->next && temppaths->next->cost->price < currPath->cost->price) {
+    while (temppaths->next && pref.compar(temppaths->next->cost, currPath->cost) < 0) {
         temppaths = temppaths->next;
     }
 
@@ -245,30 +270,31 @@ int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
     return 0;
 }
 
-int add_city_to_stack(Citynode *visited, int id) {
+int add_city_to_stack(Citynode **visited, int id) {
     Citynode *city = malloc(sizeof(Citynode));
     if (!city)
         return -1;
 
     /* intialize Citynode */
     city->cityId = id;
-    city->next = visited;
-    visited = city;
+    city->next = *visited;
+    *visited = city;
 
     return 0;
 }
 
-int remove_head(Citynode *path) {
-    Citynode *temp = path;
+int remove_head(Citynode **path) {
+    Citynode *temp = *path;
     if (!temp)
         return -1;
 
-    path = path->next;
+    (*path) = (*path)->next;
     free(temp);
     return 0;
 }
 
 /* GRAPH STRUCTURAL FUNCTIONS */
+
 Graph *create_flights_graph(Flight *flights, size_t inputsize) {
     size_t i;
     size_t row, col;
@@ -315,7 +341,7 @@ size_t get_city_id(char *city, char **cities, size_t nmemb) {
 /* returns true if `cityId` is in path */
 bool is_city_in_path(int keyCity, Citynode *path) {
     Citynode *temp = path;
-    while (temp && temp->cityId != keyCity)
+    while (temp->next && temp->cityId != keyCity)
         temp = temp->next;
 
     if (temp->cityId == keyCity)
@@ -352,6 +378,14 @@ char **create_mappings(Flight *flights, size_t inputsize, size_t *nmemb) {
     }
 
     return mappings;
+}
+
+int compar_cost_price(Cost *a, Cost *b) {
+    return a->price - b->price;
+}
+
+int compar_cost_dur(Cost *a, Cost *b) {
+    return a->duration - b->duration;
 }
 
 /* GENERIC FUNCTIONS */
@@ -394,27 +428,29 @@ Flight *read_flights_file(const char *filename, size_t *size) {
     return flights;
 }
 
-Preference get_pref_usr() {
+Preference get_pref_usr(Graph *g) {
     Preference pref;
     char ans[CITY_CHAR_LIMIT];
     /* get departure city and remove trailing white space */
     printf("Departure city: ");
-    fgets(pref.src, CITY_CHAR_LIMIT, stdin);
-    strtok(pref.src, "\n");
-    strtok(pref.src, "\r");
+    fgets(ans, CITY_CHAR_LIMIT, stdin);
+    strtok(ans, "\n");
+    strtok(ans, "\r");
+    pref.src = get_city_id(ans, g->mappings, g->nmemb);
 
     /* get destination city and remove trailing white space */
     printf("Destination: ");
-    fgets(pref.dest, CITY_CHAR_LIMIT, stdin);
-    strtok(pref.dest, "\n");
-    strtok(pref.dest, "\r");
+    fgets(ans, CITY_CHAR_LIMIT, stdin);
+    strtok(ans, "\n");
+    strtok(ans, "\r");
+    pref.dest = get_city_id(ans, g->mappings, g->nmemb);
 
     printf("Max # of transits: ");
     scanf(" %lu", &pref.transitlimit);
 
     printf("(p)rice / (t)ime: ");
     scanf(" %s", ans);
-    pref.criterion = (ans[0] == 't' || ans[0] == 'T') ? 1 : 0;
+    pref.compar = (ans[0] == 't' || ans[0] == 'T') ? compar_cost_dur : compar_cost_price;
 
     return pref;
 }
