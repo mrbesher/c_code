@@ -39,6 +39,7 @@ typedef struct _Citynode {
 } Citynode;
 
 typedef struct _Path {
+    Cost *cost;
     Citynode *head;
     struct _Path *next;
 } Path;
@@ -48,7 +49,18 @@ typedef struct _Path {
 Graph *create_flights_graph(Flight *, size_t);
 char **create_mappings(Flight *, size_t, size_t *);
 size_t get_city_id(char *, char **, size_t);
+
+/* PATH FUNCTIONS */
+
 Path get_all_paths_sorted(Graph *, Preference);
+bool is_city_in_path(int, Citynode *);
+int add_full_path(Path *, Citynode *, Graph *);
+int add_all_paths(Graph *, Path *, int, int);
+int add_paths_from_node(Graph *, Path *, Citynode *, int);
+
+/* STACK FUNCTONS */
+int remove_head(Citynode *);
+int add_city_to_stack(Citynode *, int);
 
 /* IO FUNCTIONS */
 
@@ -67,7 +79,7 @@ int main(int argc, char const *argv[]) {
     Flight *flights;    /* An array containing flights read from user */
     Graph *graph;       /* A graph containing all connections and ids of cities */
     Preference usrPref; /* user choices for the flight */
-    Path paths;
+    Path *paths = NULL;
     size_t inputsize, i, j;
 
     if (argc > 1) {
@@ -102,18 +114,161 @@ int main(int argc, char const *argv[]) {
         printf("\n");
     }
 
-    /*
     usrPref = get_pref_usr();
-
+    /*
     paths = get_all_paths_sorted(graph, usrPref);
     */
 
+    add_all_paths(graph, paths, get_city_id(usrPref.src, graph->mappings, graph->nmemb),
+                  get_city_id(usrPref.dest, graph->mappings, graph->nmemb));
     free(flights);
     free_graph(graph);
     return 0;
 }
 
-/* GRAPH FUNCTIONS */
+/* GRAPH TRAVERSE FUNCTIONS */
+int add_all_paths(Graph *graph, Path *paths, int srcId, int destId) {
+    paths = (Path*) malloc(sizeof(Path));
+    Citynode *visited = NULL;
+    paths->head = NULL;
+    add_city_to_stack(visited, srcId);
+    return add_paths_from_node(graph, paths, visited, destId);
+}
+
+int add_paths_from_node(Graph *graph, Path *paths, Citynode *visited, int destId) {
+    Citynode *currCity = paths->head;
+    size_t i;
+    Cost connCost;
+
+    for (i = 0; i < graph->nmemb; i++) {
+        connCost = graph->adjMatrix[currCity->cityId][i];
+
+        /* if a flight exists between current city and dest */
+        if (i == (size_t)destId && connCost.price != 0) {
+            printf("Found dest from %ld to %d\n", i, destId);
+            add_city_to_stack(visited, i);
+            add_full_path(paths, visited, graph);
+            remove_head(visited);
+        } else if (connCost.price != 0 && !is_city_in_path(currCity->cityId, visited)) {
+            /* if city has a connection and not visited */
+            printf("Visiting %ld", i);
+            add_city_to_stack(visited, i);
+            add_paths_from_node(graph, paths, visited, destId);
+        }
+    }
+    /* pop self from stack */
+    printf("backtracking from %d", visited->cityId);
+    remove_head(visited);
+    return 0;
+
+    /*
+    currCity = get_head(visited);
+    for neighbor in currCity.neighbors:
+        if neighbor == destId:
+            break;
+        if not visited:
+            add_to_visited(visited, currCity);
+            add_paths_from_node(graph, paths, visited, destId);
+    if neighbor == destId:
+        add_path(Paths, visited)
+    reutrn 0;
+    */
+}
+
+int add_full_path(Path *paths, Citynode *visited, Graph *graph) {
+    Path *temppaths = paths;
+    Citynode *tempcity = visited;
+    Citynode *newcity;
+    Path *currPath;
+    Cost *cost, tempcost;
+
+    currPath = malloc(sizeof(Path));
+    cost = malloc(sizeof(Cost));
+    cost->duration = 0;
+    cost->price = 0;
+
+    newcity = (Citynode *)malloc(sizeof(Citynode));
+    newcity->cityId = tempcity->cityId;
+    newcity->next = NULL;
+    currPath->head = newcity;
+
+    /* add cities to currPath */
+    while ((tempcity = tempcity->next)) {
+        /* add current link cost */
+        tempcost = graph->adjMatrix[newcity->cityId][tempcity->next->cityId];
+        currPath->cost->price += tempcost.price;
+        currPath->cost->duration += tempcost.duration + 1;
+
+        /* add new node to path */
+        newcity = (Citynode *)malloc(sizeof(Citynode));
+        newcity->cityId = tempcity->cityId;
+        newcity->next = currPath->head;
+    }
+
+    /*
+    number of transits is `nodes - 2`
+    one city is not counted above already
+    */
+    currPath->cost->duration--;
+
+    /* linkedlist empty */
+    if (!temppaths) {
+        paths = currPath;
+        currPath->next = NULL;
+        return 0;
+    }
+
+    /* path has only one node */
+    if (!(temppaths->next)) {
+        /* if cost of current path is more */
+        if (temppaths->cost->price > currPath->cost->price) {
+            currPath->next = temppaths;
+        } else {
+            temppaths->next = currPath;
+            currPath->next = NULL;
+        }
+        return 0;
+    }
+
+    /* calculated path has less cost than the head path */
+    if (temppaths->cost->price > currPath->cost->price) {
+        currPath->next = temppaths;
+        return 0;
+    }
+
+    while (temppaths->next && temppaths->next->cost->price < currPath->cost->price) {
+        temppaths = temppaths->next;
+    }
+
+    currPath->next = temppaths->next;
+    temppaths->next = currPath;
+    return 0;
+}
+
+int add_city_to_stack(Citynode *visited, int id) {
+    Citynode *city = malloc(sizeof(Citynode));
+    if (!city)
+        return -1;
+
+    /* intialize Citynode */
+    city->cityId = id;
+    city->next = visited;
+    visited = city;
+
+    return 0;
+}
+
+int remove_head(Citynode *path) {
+    Citynode *temp = path;
+    if (!temp)
+        return -1;
+
+    path = path->next;
+    free(temp);
+    return 0;
+}
+
+/* GRAPH STRUCTURAL FUNCTIONS */
 Graph *create_flights_graph(Flight *flights, size_t inputsize) {
     size_t i;
     size_t row, col;
@@ -157,6 +312,18 @@ size_t get_city_id(char *city, char **cities, size_t nmemb) {
     return UINT_MAX;
 }
 
+/* returns true if `cityId` is in path */
+bool is_city_in_path(int keyCity, Citynode *path) {
+    Citynode *temp = path;
+    while (temp && temp->cityId != keyCity)
+        temp = temp->next;
+
+    if (temp->cityId == keyCity)
+        return true;
+
+    return false;
+}
+
 char **create_mappings(Flight *flights, size_t inputsize, size_t *nmemb) {
     size_t i, arrSize;
     char **mappings;
@@ -186,6 +353,8 @@ char **create_mappings(Flight *flights, size_t inputsize, size_t *nmemb) {
 
     return mappings;
 }
+
+/* GENERIC FUNCTIONS */
 
 bool is_str_in_arr(char key[], char **strarr, size_t nmemb) {
     size_t i;
