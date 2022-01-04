@@ -89,22 +89,24 @@ int main(int argc, char const* argv[]) {
             print_log(log)
     */
 
+    people = read_people_file(argv[1], &size);
     cachesize = get_cache_size();
     m = (size_t)(cachesize / 0.6 + 0.5);
     m = smallest_prime_ge(m);
 
+    printf(SEPERATOR);
     printf("TABLE SIZE: %-3d\n", m);
     printf(SEPERATOR);
     Hashtable* table = create_hashtable(m);
     Cache* cache = create_cache(cachesize);
-    people = read_people_file(argv[1], &size);
+
     for (size_t i = 0; i < size; i++) {
+        printf("\n## REFERENCING '%-10s'\n", people[i].id);
         index = get_loc_hashtable(table, people[i].id);
         /* if not in hash table */
         if (index == INVALID || index == DELETED) {
-            printf("\nCache Miss. Caching '%s'...\n", people[i].id);
+            printf("Cache Miss. Caching '%s'...\n", people[i].id);
             insert_hashtable(table, people[i].id, 0);
-            print_hashtable(table);
             add_to_cache(cache, people[i], table);
             print_cache(cache);
             // print_hashtable(table);
@@ -136,9 +138,7 @@ Cache* create_cache(size_t size) {
 int add_to_cache(Cache* cache, Person p, Hashtable* table) {
     Block* temp;
     size_t i;
-    printf("> %d", __LINE__);
-    print_cache(cache);
-    printf("REAR %-10s\n", cache->rear->record.id);
+
     /* remove first accessed block if cache is full */
     if (cache->count == cache->size) {
         i = get_loc_hashtable(table, cache->rear->record.id);
@@ -150,9 +150,6 @@ int add_to_cache(Cache* cache, Person p, Hashtable* table) {
     temp->record = p;
     temp->next = NULL;
     temp->prev = NULL;
-
-    printf("> %d", __LINE__);
-    print_cache(cache);
 
     if (!(cache->rear)) {
         cache->rear = cache->front = temp;
@@ -166,8 +163,6 @@ int add_to_cache(Cache* cache, Person p, Hashtable* table) {
     table->map[i].loc = 0;
     cache->count++;
 
-    printf("> %d", __LINE__);
-    print_cache(cache);
     for (temp = cache->front->next; temp; temp = temp->next) {
         i = get_loc_hashtable(table, temp->record.id);
         table->map[i].loc++;
@@ -206,6 +201,13 @@ int move_to_front(Cache* cache, size_t loc, Hashtable* table) {
     /* remove node from queue */
     temp->prev->next = temp->next;
 
+    if (temp->next) {
+        temp->next->prev = temp->prev;
+    } else {
+        /* last element in queue */
+        cache->rear = temp->prev;
+    }
+
     /* assign temp's new links */
     temp->next = cache->front;
     temp->prev = NULL;
@@ -240,10 +242,8 @@ void dequeue(Cache* cache) {
     if (cache->front == cache->rear)
         cache->front = NULL;
 
-    printf("%d> %-10s\n", __LINE__, cache->rear);
     temp = cache->rear;
     cache->rear = cache->rear->prev;
-    printf("%d> %-10s\n", __LINE__, cache->rear);
 
     if (cache->rear)
         cache->rear->next = NULL;
@@ -251,7 +251,6 @@ void dequeue(Cache* cache) {
     free(temp);
 
     cache->count--;
-    print_cache(cache);
 }
 
 /* HASHMAP FUNCTIONS */
